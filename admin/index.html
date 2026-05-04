@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRIT 管理后台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ===== 通用 ===== */
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* ===== 侧边栏 ===== */
+    .sidebar { width: 220px; transition: transform 0.3s ease, width 0.3s ease; }
+    .sidebar.collapsed { transform: translateX(-220px); width: 0; min-width: 0; }
+    .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .submenu.open { max-height: 200px; }
+    .menu-item { transition: background 0.15s ease, color 0.15s ease; }
+    .menu-item.active { background: #475569; color: #fff; }
+
+    /* ===== 表格 ===== */
+    .data-table th { font-weight: 600; font-size: 13px; color: #64748b; text-align: left; padding: 12px 16px; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    .data-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #334155; }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    /* ===== Markdown 编辑器 ===== */
+    .md-editor { min-height: 420px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 14px; line-height: 1.7; }
+    .md-preview { min-height: 420px; }
+    .md-preview h1 { font-size: 1.8em; font-weight: 700; margin: 0.67em 0; }
+    .md-preview h2 { font-size: 1.4em; font-weight: 600; margin: 0.75em 0 0.5em; }
+    .md-preview h3 { font-size: 1.15em; font-weight: 600; margin: 0.6em 0 0.4em; }
+    .md-preview p { margin: 0.6em 0; line-height: 1.8; }
+    .md-preview pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 0.8em 0; font-size: 13px; }
+    .md-preview code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    .md-preview pre code { background: none; padding: 0; }
+    .md-preview blockquote { border-left: 4px solid #94a3b8; padding-left: 16px; color: #64748b; margin: 0.8em 0; font-style: italic; }
+    .md-preview ul, .md-preview ol { margin: 0.5em 0; padding-left: 1.5em; }
+    .md-preview li { margin: 0.25em 0; }
+    .md-preview strong { font-weight: 600; color: #1e293b; }
+    .md-preview img { max-width: 100%; border-radius: 8px; }
+
+    /* ===== 模态框 ===== */
+    .modal-overlay { background: rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease; }
+    .modal-overlay.show { opacity: 1; visibility: visible; }
+    .modal-content { transform: scale(0.95) translateY(10px); transition: transform 0.25s ease; }
+    .modal-overlay.show .modal-content { transform: scale(1) translateY(0); }
+
+    /* ===== 暗色模式 ===== */
+    html.dark body { background: #282c34; }
+    html.dark #navbar { background: #21252b !important; border-color: #3e4451 !important; }
+    html.dark .sidebar { background: #21252b !important; border-color: #3e4451 !important; }
+    html.dark .menu-item { color: #abb2bf; }
+    html.dark .menu-item:hover { background: rgba(255,255,255,0.06); color: #e5e7eb; }
+    html.dark .menu-item.active { background: #475569; color: #fff; }
+    html.dark .data-table th { color: #abb2bf; border-color: #3e4451; }
+    html.dark .data-table td { color: #abb2bf; border-color: #2c313a; }
+    html.dark .data-table tr:hover td { background: #2c313a; }
+    html.dark .card-admin { background: #2c313a !important; border-color: #3e4451 !important; }
+    html.dark .input-admin { background: #2c313a !important; border-color: #3e4451 !important; color: #abb2bf !important; }
+    html.dark .modal-box { background: #2c313a !important; border-color: #3e4451 !important; color: #abb2bf !important; }
+    html.dark #footer { background: #21252b !important; border-color: #3e4451 !important; color: #5c6370 !important; }
+    html.dark .text-heading { color: #e5e7eb !important; }
+    html.dark .text-body { color: #abb2bf !important; }
+    html.dark .md-preview strong { color: #e5e7eb; }
+    html.dark .md-preview code { background: #3e4451; }
+    html.dark .nav-text { color: #e5e7eb !important; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col" style="background:#f8fafc;">
+
+<!-- ============================================ -->
+<!--              顶部导航栏                        -->
+<!-- ============================================ -->
+<nav id="navbar" class="sticky top-0 z-30 border-b border-slate-200 flex-shrink-0"
+     style="background:rgba(255,255,255,0.94);backdrop-filter:blur(12px);">
+  <div class="h-16 flex items-center justify-between px-6">
+    <!-- 左侧 -->
+    <div class="flex items-center gap-4">
+      <button id="sidebar-toggle" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 lg:hidden" title="菜单">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <a href="#" class="flex items-center gap-2.5 select-none" style="text-decoration:none;">
+        <svg class="w-10 h-10" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="32" y="4" width="2" height="32" rx="1" fill="#64748b"/><rect x="42" y="4" width="2" height="32" rx="1" fill="#64748b"/><rect x="30" y="3" width="16" height="3" rx="1.5" fill="#64748b"/>
+          <rect x="34" y="20" width="8" height="18" rx="4" fill="#475569"/>
+          <circle cx="38" cy="12" r="8" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+          <path d="M32 6 Q36 2 42 4 Q46 7 45 10 L44 5 Q40 1 34 4 Z" fill="#92400e"/>
+          <rect x="33" y="10" width="4.5" height="3" rx="1" fill="none" stroke="#1e293b" stroke-width="1.2"/><rect x="38.5" y="10" width="4.5" height="3" rx="1" fill="none" stroke="#1e293b" stroke-width="1.2"/><line x1="37.5" y1="11.5" x2="38.5" y2="11.5" stroke="#1e293b" stroke-width="1"/>
+          <circle cx="35.25" cy="11.5" r="0.8" fill="#0f172a"/><circle cx="40.75" cy="11.5" r="0.8" fill="#0f172a"/>
+          <line x1="36.5" y1="15.5" x2="39.5" y2="15.5" stroke="#d97706" stroke-width="0.8" stroke-linecap="round"/>
+          <path d="M34 26 Q28 28 26 34" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/><path d="M42 26 Q48 28 50 34" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="26" cy="34" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/><circle cx="50" cy="34" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+          <rect x="2" y="36" width="52" height="3" rx="1" fill="#64748b"/><rect x="6" y="39" width="3" height="14" rx="1" fill="#475569"/><rect x="47" y="39" width="3" height="14" rx="1" fill="#475569"/>
+          <rect x="22" y="36" width="12" height="2" rx="1" fill="#334155"/><rect x="26" y="30" width="4" height="6" fill="#334155"/>
+          <rect x="8" y="8" width="24" height="18" rx="2" fill="#334155"/><rect x="10.5" y="10" width="19" height="14" rx="1" fill="#1e293b"/>
+          <rect x="12" y="11.5" width="8" height="1.2" rx="0.6" fill="#38bdf8"/><rect x="12" y="13.5" width="12" height="1.2" rx="0.6" fill="#a78bfa"/><rect x="12" y="15.5" width="6" height="1.2" rx="0.6" fill="#f472b6"/><rect x="12" y="17.5" width="14" height="1.2" rx="0.6" fill="#38bdf8"/><rect x="12" y="19.5" width="10" height="1.2" rx="0.6" fill="#a78bfa"/><rect x="12" y="21.5" width="9" height="1.2" rx="0.6" fill="#4ade80"/>
+          <rect x="30" y="36" width="20" height="2.5" rx="1" fill="#475569"/><line x1="32" y1="37.2" x2="48" y2="37.2" stroke="#64748b" stroke-width="0.5"/>
+        </svg>
+        <span class="text-xl font-black tracking-wider text-slate-800 nav-text" style="font-family:'Impact','Arial Black',sans-serif;">GRIT <span class="text-sm font-semibold text-slate-500 nav-text ml-1">管理后台</span></span>
+      </a>
+    </div>
+
+    <!-- 右侧 -->
+    <div class="flex items-center gap-2">
+      <button id="theme-btn" class="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="切换主题">
+        <svg id="theme-sun" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg id="theme-moon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button id="user-btn" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm hover:opacity-80 transition-opacity" style="background:#475569;" title="用户信息">G</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================ -->
+<!--              主内容区                          -->
+<!-- ============================================ -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- 左侧菜单栏 -->
+  <aside id="sidebar" class="sidebar flex-shrink-0 border-r border-slate-200 overflow-y-auto flex flex-col py-4" style="background:#fff;">
+    <nav class="px-3 space-y-1">
+      <!-- 文章管理 -->
+      <div>
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="articles">
+          <span>📄 文章管理</span>
+          <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="submenu" data-submenu="articles">
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-articles" onclick="navigate(event,'all-articles')">所有文章</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="new-article" onclick="navigate(event,'new-article')">写新文章</a>
+        </div>
+      </div>
+      <!-- 分类管理 -->
+      <div>
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="categories">
+          <span>📂 分类管理</span>
+          <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="submenu" data-submenu="categories">
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-categories" onclick="navigate(event,'all-categories')">所有分类</a>
+        </div>
+      </div>
+      <!-- 标签管理 -->
+      <div>
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="tags">
+          <span>🏷️ 标签管理</span>
+          <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="submenu" data-submenu="tags">
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-tags" onclick="navigate(event,'all-tags')">所有标签</a>
+        </div>
+      </div>
+      <!-- 评论管理 -->
+      <div>
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="comments">
+          <span>💬 评论管理</span>
+          <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="submenu" data-submenu="comments">
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-comments" onclick="navigate(event,'all-comments')">所有评论</a>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- 右侧主操作区 -->
+  <main id="main-area" class="flex-1 overflow-y-auto p-6">
+    <!-- 动态渲染 -->
+  </main>
+</div>
+
+<!-- ============================================ -->
+<!--              页脚                              -->
+<!-- ============================================ -->
+<footer id="footer" class="border-t border-slate-200 py-6 flex-shrink-0" style="background:#f1f5f9;">
+  <div class="text-center text-sm text-slate-500">
+    <p>&copy; 2026 GRIT Blog Admin. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- ============================================ -->
+<!--              模态框容器                        -->
+<!-- ============================================ -->
+<div id="modal-container"></div>
+
+<script>
+(function(){
+/* =================================================================
+   Data Store —— Mock 数据（后期替换为 API）
+   ================================================================= */
+const Store = {
+  articles: [
+    { id:1, title:'深入理解 React 18 并发特性', date:'2026-05-03 14:30:00', summary:'React 18 引入了全新的并发渲染机制…', tags:['React','前端开发','JavaScript'], likes:128, favs:56, category:'前端开发', content:'## React 18 并发特性\n\n这是一篇关于 React 18 的技术文章…', reads:1250 },
+    { id:2, title:'使用 Rust 构建高性能 API 服务', date:'2026-04-28 10:15:00', summary:'Rust 以其卓越的性能和内存安全性…', tags:['Rust','后端架构','API'], likes:96, favs:42, category:'后端架构', content:'## Rust 高性能 API\n\n使用 Actix-web 构建…', reads:980 },
+    { id:3, title:'GPT 提示工程：从入门到精通', date:'2026-04-20 16:45:00', summary:'提示工程是发挥大语言模型能力的关键技能…', tags:['AI','LLM','提示工程'], likes:256, favs:112, category:'人工智能', content:'## 提示工程\n\n核心技巧包括…', reads:2100 },
+    { id:4, title:'2026 前端技术趋势展望', date:'2026-04-15 09:00:00', summary:'回顾过去一年前端领域的技术演进…', tags:['前端开发','趋势','2026'], likes:189, favs:73, category:'前端开发', content:'## 2026 趋势\n\nRust 化工具链…', reads:1560 },
+    { id:5, title:'周末徒步：京郊最美山脊线', date:'2026-04-10 20:00:00', summary:'记录一次令人难忘的京郊山脊徒步经历…', tags:['徒步','生活','户外'], likes:67, favs:28, category:'生活随笔', content:'## 京郊徒步\n\n四月北京…', reads:430 },
+    { id:6, title:'《代码整洁之道》读书笔记', date:'2026-04-05 13:20:00', summary:'重读 Robert C. Martin 的经典之作…', tags:['读书笔记','代码质量','软件工程'], likes:145, favs:89, category:'读书笔记', content:'## 整洁代码\n\n命名、函数…', reads:780 },
+    { id:7, title:'使用 Docker Compose 编排微服务', date:'2026-03-28 11:10:00', summary:'容器编排是微服务架构中必不可少的一环…', tags:['Docker','微服务','DevOps'], likes:83, favs:35, category:'后端架构', content:'## Docker Compose\n\n多容器管理…', reads:620 },
+    { id:8, title:'浅谈 Web 性能优化策略', date:'2026-03-20 15:00:00', summary:'Web 性能直接关系到用户体验…', tags:['性能优化','前端开发','Web'], likes:112, favs:48, category:'前端开发', content:'## Web 性能\n\n加载、渲染、缓存…', reads:890 },
+  ],
+  categories: [
+    { id:1, name:'前端开发', count:3, icon:'🎨' },
+    { id:2, name:'后端架构', count:2, icon:'⚙️' },
+    { id:3, name:'人工智能', count:1, icon:'🤖' },
+    { id:4, name:'生活随笔', count:1, icon:'✍️' },
+    { id:5, name:'读书笔记', count:1, icon:'📚' },
+  ],
+  tags: ['React','前端开发','JavaScript','Rust','后端架构','API','AI','LLM','提示工程','趋势','2026','徒步','生活','户外','读书笔记','代码质量','软件工程','Docker','微服务','DevOps','性能优化','Web'],
+  comments: [
+    { id:1, articleId:1, articleTitle:'深入理解 React 18 并发特性', author:'小明', text:'写得非常好，收益良多！', time:'2026-05-03 17:30' },
+    { id:2, articleId:1, articleTitle:'深入理解 React 18 并发特性', author:'小红', text:'期待更多 React 相关的文章', time:'2026-05-03 18:15' },
+    { id:3, articleId:3, articleTitle:'GPT 提示工程：从入门到精通', author:'张三', text:'提示工程确实是 AI 时代的必备技能', time:'2026-04-22 09:20' },
+    { id:4, articleId:5, articleTitle:'周末徒步：京郊最美山脊线', author:'户外爱好者', text:'下次一起走一趟！', time:'2026-04-12 14:00' },
+    { id:5, articleId:2, articleTitle:'使用 Rust 构建高性能 API 服务', author:'后端小哥', text:'Actix-web 确实快', time:'2026-04-30 11:00' },
+  ],
+  user: { name:'Grit', email:'admin@gritblog.com', bio:'全栈工程师 · 技术博主', avatar:'G' },
+  nextId: 9,
+};
+
+/* =================================================================
+   API Layer —— 封装所有数据操作（后期替换为 fetch 调用）
+   ================================================================= */
+const API = {
+  // ---- 文章 ----
+  getArticles()      { return [...Store.articles]; },
+  getArticle(id)     { return Store.articles.find(a=>a.id===id)||null; },
+  createArticle(data){ const a={...data,id:Store.nextId++,date:new Date().toLocaleString('zh-CN'),likes:0,favs:0,reads:0}; Store.articles.unshift(a); this._syncCats(); return a; },
+  updateArticle(id,data){ const a=Store.articles.find(a=>a.id===id); if(a){ Object.assign(a,data); this._syncCats(); } return a; },
+  deleteArticle(id)  { Store.articles=Store.articles.filter(a=>a.id!==id); Store.comments=Store.comments.filter(c=>c.articleId!==id); this._syncCats(); },
+  _syncCats(){ const map={}; Store.articles.forEach(a=>{ if(a.category) map[a.category]=(map[a.category]||0)+1; }); Store.categories.forEach(c=>{ c.count=map[c.name]||0; }); },
+
+  // ---- 分类 ----
+  getCategories(){ return [...Store.categories]; },
+  createCategory(data){ const c={...data,id:Date.now()}; Store.categories.push(c); return c; },
+  updateCategory(id,data){ const c=Store.categories.find(c=>c.id===id); if(c)Object.assign(c,data); return c; },
+  deleteCategory(id){ Store.categories=Store.categories.filter(c=>c.id!==id); },
+
+  // ---- 标签 ----
+  getTags(){ return [...Store.tags]; },
+  createTag(name){ if(!Store.tags.includes(name)){ Store.tags.push(name); } return Store.tags; },
+  updateTag(oldName,newName){ const i=Store.tags.indexOf(oldName); if(i>=0)Store.tags[i]=newName; Store.articles.forEach(a=>{ const j=a.tags.indexOf(oldName); if(j>=0)a.tags[j]=newName; }); return Store.tags; },
+  deleteTag(name){ Store.tags=Store.tags.filter(t=>t!==name); Store.articles.forEach(a=>{ a.tags=a.tags.filter(t=>t!==name); }); },
+
+  // ---- 评论 ----
+  getComments(){ return [...Store.comments]; },
+  createComment(data){ const c={...data,id:Date.now(),time:new Date().toLocaleString('zh-CN')}; Store.comments.unshift(c); return c; },
+  updateComment(id,data){ const c=Store.comments.find(c=>c.id===id); if(c)Object.assign(c,data); return c; },
+  deleteComment(id){ Store.comments=Store.comments.filter(c=>c.id!==id); },
+
+  // ---- 用户 ----
+  getUser(){ return {...Store.user}; },
+  updateUser(data){ Object.assign(Store.user,data); return Store.user; },
+};
+
+/* =================================================================
+   Router & Navigation
+   ================================================================= */
+let currentPage = 'all-articles';
+
+function navigate(e, page) {
+  e.preventDefault();
+  currentPage = page;
+  updateMenuActive();
+  renderPage();
+}
+
+function updateMenuActive() {
+  document.querySelectorAll('.menu-item').forEach(el=>{
+    el.classList.toggle('active', el.dataset.page === currentPage);
+  });
+}
+
+function renderPage() {
+  const main = document.getElementById('main-area');
+  switch (currentPage) {
+    case 'all-articles':   main.innerHTML = renderAllArticles(); break;
+    case 'new-article':    main.innerHTML = renderNewArticle(); initMdEditor(); break;
+    case 'all-categories': main.innerHTML = renderAllCategories(); break;
+    case 'all-tags':       main.innerHTML = renderAllTags(); break;
+    case 'all-comments':   main.innerHTML = renderAllComments(); break;
+    default:               main.innerHTML = renderAllArticles();
+  }
+  // 挂载事件
+  setTimeout(bindPageEvents, 0);
+}
+
+/* =================================================================
+   Sidebar —— 子菜单展开/收起 + 移动端折叠
+   ================================================================= */
+function toggleSubmenu(btn) {
+  const menuName = btn.dataset.menu;
+  const sub = document.querySelector(`[data-submenu="${menuName}"]`);
+  const arrow = btn.querySelector('svg');
+  if (sub && arrow) {
+    sub.classList.toggle('open');
+    arrow.style.transform = sub.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+}
+
+document.getElementById('sidebar-toggle').addEventListener('click',()=>{
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+/* =================================================================
+   Theme Toggle
+   ================================================================= */
+(function(){
+  const btn=document.getElementById('theme-btn'), sun=document.getElementById('theme-sun'), moon=document.getElementById('theme-moon'), html=document.documentElement;
+  const saved=localStorage.getItem('admin_theme');
+  function set(dark){ html.classList.toggle('dark',dark); sun.classList.toggle('hidden',dark); moon.classList.toggle('hidden',!dark); localStorage.setItem('admin_theme',dark?'dark':'light'); }
+  const prefers=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  set(saved==='dark'||(!saved&&prefers));
+  btn.addEventListener('click',()=>set(!html.classList.contains('dark')));
+})();
+
+/* =================================================================
+   User Profile Modal
+   ================================================================= */
+function showProfileModal() {
+  const u=API.getUser();
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">编辑用户信息</h2>
+    <div class="space-y-4">
+      <div><label class="block text-sm font-medium text-slate-600 mb-1">昵称</label><input id="prof-name" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(u.name)}" /></div>
+      <div><label class="block text-sm font-medium text-slate-600 mb-1">邮箱</label><input id="prof-email" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(u.email)}" /></div>
+      <div><label class="block text-sm font-medium text-slate-600 mb-1">简介</label><textarea id="prof-bio" rows="3" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none resize-none" style="background:#f9fafb;">${esc(u.bio)}</textarea></div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveProfile()" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveProfile() {
+  API.updateUser({
+    name: document.getElementById('prof-name').value.trim()||Store.user.name,
+    email: document.getElementById('prof-email').value.trim()||Store.user.email,
+    bio: document.getElementById('prof-bio').value.trim()||Store.user.bio,
+  });
+  closeModal();
+  showToast('用户信息已更新');
+}
+
+/* =================================================================
+   Modal Helpers
+   ================================================================= */
+function showModal(html) {
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay show fixed inset-0 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeModal()">
+      <div class="modal-content modal-box bg-white rounded-xl p-6 w-full max-w-md shadow-2xl" style="border:1px solid #e2e8f0;">
+        ${html}
+      </div>
+    </div>
+  `;
+}
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+function showToast(msg) {
+  const t=document.createElement('div');
+  t.className='fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-lg text-white text-sm shadow-lg transition-all duration-300';
+  t.style.background='#475569'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2000);
+}
+
+function confirmDialog(msg) { return window.confirm(msg); }
+
+/* =================================================================
+   Helper
+   ================================================================= */
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function mdRender(md){
+  let h=esc(md||'');
+  h=h.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>');
+  h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+  h=h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  h=h.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  h=h.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  h=h.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  h=h.replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>');
+  h=h.replace(/^- (.+)$/gm,'<li>$1</li>');
+  h=h.replace(/\n\n/g,'</p><p>');
+  h='<p>'+h+'</p>';
+  return h;
+}
+
+/* =================================================================
+   Page Renderers
+   ================================================================= */
+
+// ---- 所有文章 ----
+function renderAllArticles() {
+  const articles = API.getArticles();
+  const cats = API.getCategories();
+  const catOpts = cats.map(c=>`<option value="${esc(c.name)}">${esc(c.name)} (${c.count})</option>`).join('');
+
+  const rows = articles.map(a=>`
+    <tr>
+      <td class="font-medium">${esc(a.title)}</td>
+      <td>${esc(a.category)}</td>
+      <td class="text-xs">${a.tags.map(t=>`<span class="inline-block px-1.5 py-0.5 rounded mr-1 text-white" style="background:#64748b;">${esc(t)}</span>`).join('')}</td>
+      <td>${a.date}</td>
+      <td>❤️${a.likes} ⭐${a.favs}</td>
+      <td>
+        <button onclick="viewArticle(${a.id})" class="text-indigo-500 hover:underline text-xs mr-2">详情</button>
+        <button onclick="editArticle(${a.id})" class="text-amber-500 hover:underline text-xs mr-2">编辑</button>
+        <button onclick="deleteArticleRow(${a.id})" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <h2 class="text-xl font-bold text-heading mb-5" style="color:#1e293b;">所有文章</h2>
+    <div class="card-admin bg-white rounded-lg p-4 mb-4 shadow-sm flex flex-wrap items-center gap-3" style="border:1px solid #e0e0e0;">
+      <input id="article-search" class="input-admin px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none w-56" style="background:#f9fafb;" placeholder="🔍 搜索文章标题…" />
+      <select id="article-cat-filter" class="input-admin px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;">
+        <option value="">全部分类</option>${catOpts}
+      </select>
+      <button onclick="resetArticleFilter()" class="text-sm text-slate-400 hover:text-slate-600">重置</button>
+    </div>
+    <div class="card-admin bg-white rounded-lg shadow-sm overflow-x-auto" style="border:1px solid #e0e0e0;">
+      <table class="data-table w-full">
+        <thead><tr><th>标题</th><th>分类</th><th>标签</th><th>发布时间</th><th>互动</th><th>操作</th></tr></thead>
+        <tbody id="article-tbody">${rows||'<tr><td colspan="6" class="text-center text-slate-400 py-8">暂无文章</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function filterArticles() {
+  const q = (document.getElementById('article-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('article-cat-filter')?.value||'';
+  let list = API.getArticles();
+  if (q) list = list.filter(a=>a.title.toLowerCase().includes(q));
+  if (cat) list = list.filter(a=>a.category===cat);
+  const tbody = document.getElementById('article-tbody');
+  if (tbody) {
+    tbody.innerHTML = list.map(a=>`
+      <tr>
+        <td class="font-medium">${esc(a.title)}</td>
+        <td>${esc(a.category)}</td>
+        <td class="text-xs">${a.tags.map(t=>`<span class="inline-block px-1.5 py-0.5 rounded mr-1 text-white" style="background:#64748b;">${esc(t)}</span>`).join('')}</td>
+        <td>${a.date}</td>
+        <td>❤️${a.likes} ⭐${a.favs}</td>
+        <td>
+          <button onclick="viewArticle(${a.id})" class="text-indigo-500 hover:underline text-xs mr-2">详情</button>
+          <button onclick="editArticle(${a.id})" class="text-amber-500 hover:underline text-xs mr-2">编辑</button>
+          <button onclick="deleteArticleRow(${a.id})" class="text-red-400 hover:underline text-xs">删除</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="text-center text-slate-400 py-8">无匹配文章</td></tr>';
+  }
+}
+
+function resetArticleFilter() {
+  const s = document.getElementById('article-search');
+  const c = document.getElementById('article-cat-filter');
+  if (s) s.value = '';
+  if (c) c.value = '';
+  filterArticles();
+}
+
+function viewArticle(id) {
+  const a = API.getArticle(id);
+  if (!a) return;
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-2" style="color:#1e293b;">${esc(a.title)}</h2>
+    <p class="text-xs text-slate-400 mb-3">${a.date} · ${esc(a.category)} · ${a.reads} 阅读</p>
+    <div class="md-preview max-h-96 overflow-y-auto text-sm leading-relaxed text-body" style="color:#334155;">${mdRender(a.content)}</div>
+    <div class="flex justify-end mt-4"><button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">关闭</button></div>
+  `);
+}
+
+function editArticle(id) {
+  const a = API.getArticle(id);
+  if (!a) return;
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">编辑文章</h2>
+    <div class="space-y-3">
+      <input id="edit-title" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(a.title)}" />
+      <select id="edit-cat" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;">${API.getCategories().map(c=>`<option value="${esc(c.name)}" ${c.name===a.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+      <textarea id="edit-summary" rows="2" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none resize-none" style="background:#f9fafb;">${esc(a.summary)}</textarea>
+      <input id="edit-tags" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(a.tags.join(','))}" placeholder="标签，逗号分隔" />
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveEditArticle(${id})" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveEditArticle(id) {
+  API.updateArticle(id, {
+    title: document.getElementById('edit-title').value.trim(),
+    category: document.getElementById('edit-cat').value,
+    summary: document.getElementById('edit-summary').value.trim(),
+    tags: document.getElementById('edit-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+  });
+  closeModal();
+  renderPage();
+  showToast('文章已更新');
+}
+
+function deleteArticleRow(id) {
+  if (!confirmDialog('确定删除这篇文章？相关评论也将被删除。')) return;
+  API.deleteArticle(id);
+  renderPage();
+  showToast('文章已删除');
+}
+
+// ---- 写新文章 ----
+function renderNewArticle() {
+  return `
+    <h2 class="text-xl font-bold text-heading mb-5" style="color:#1e293b;">写新文章</h2>
+    <div class="card-admin bg-white rounded-lg p-4 mb-4 shadow-sm space-y-3" style="border:1px solid #e0e0e0;">
+      <input id="new-title" class="input-admin w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" placeholder="文章标题" />
+      <div class="flex gap-3">
+        <select id="new-cat" class="input-admin px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none flex-1" style="background:#f9fafb;">
+          <option value="">选择分类</option>${API.getCategories().map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}
+        </select>
+        <input id="new-tags" class="input-admin px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none flex-1" style="background:#f9fafb;" placeholder="标签，逗号分隔" />
+        <input id="new-summary" class="input-admin px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none flex-1" style="background:#f9fafb;" placeholder="文章摘要" />
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="px-4 py-2 rounded-lg text-sm cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5" style="background:#f1f5f9;border:1px solid #d1d5db;color:#475569;">
+          📎 上传文件
+          <input type="file" id="file-upload" accept=".md,.txt,.pdf,.docx,.doc" class="hidden" onchange="handleFileUpload(event)" />
+        </label>
+        <span id="file-name" class="text-xs text-slate-400"></span>
+      </div>
+    </div>
+    <div class="flex gap-4" style="min-height:420px;">
+      <div class="flex-1 flex flex-col">
+        <span class="text-xs font-medium text-slate-400 mb-2">📝 Markdown 编辑</span>
+        <textarea id="md-input" class="md-editor input-admin flex-1 p-4 rounded-lg border border-slate-200 outline-none resize-none" style="background:#fafafa;" placeholder="在此编写 Markdown 内容…&#10;&#10;## 二级标题&#10;&#10;正文内容…&#10;&#10;```js&#10;console.log('Hello');&#10;```"></textarea>
+      </div>
+      <div class="flex-1 flex flex-col">
+        <span class="text-xs font-medium text-slate-400 mb-2">👁️ 实时预览</span>
+        <div id="md-preview" class="md-preview card-admin flex-1 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm" style="background:#fff;color:#334155;line-height:1.8;"></div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="publishArticle()" class="px-6 py-2.5 rounded-lg text-sm text-white font-medium hover:opacity-90 transition-opacity" style="background:#475569;">发布文章</button>
+    </div>
+  `;
+}
+
+function initMdEditor() {
+  const input = document.getElementById('md-input');
+  const preview = document.getElementById('md-preview');
+  if (!input || !preview) return;
+  const update = () => { preview.innerHTML = mdRender(input.value); };
+  input.addEventListener('input', update);
+  update();
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('file-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const ta = document.getElementById('md-input');
+    if (ta) ta.value = reader.result;
+    const preview = document.getElementById('md-preview');
+    if (preview) preview.innerHTML = mdRender(reader.result);
+  };
+  if (file.name.endsWith('.pdf') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+    showToast('PDF/Word 文件需要后端解析服务支持，当前仅读取为文本');
+    reader.readAsText(file);
+  } else {
+    reader.readAsText(file);
+  }
+}
+
+function publishArticle() {
+  const title = document.getElementById('new-title')?.value.trim();
+  const content = document.getElementById('md-input')?.value.trim();
+  if (!title || !content) { showToast('标题和内容不能为空'); return; }
+  API.createArticle({
+    title,
+    category: document.getElementById('new-cat')?.value||'未分类',
+    tags: (document.getElementById('new-tags')?.value||'').split(',').map(t=>t.trim()).filter(Boolean),
+    summary: (document.getElementById('new-summary')?.value||'').trim() || content.slice(0,100),
+    content,
+  });
+  showToast('文章发布成功！');
+  navigate({preventDefault:()=>{}}, 'all-articles');
+}
+
+// ---- 所有分类 ----
+function renderAllCategories() {
+  const rows = API.getCategories().map(c=>`
+    <tr>
+      <td>${c.icon||''} ${esc(c.name)}</td>
+      <td>${c.count||0} 篇</td>
+      <td>
+        <button onclick="editCategory(${c.id},'${esc(c.name)}')" class="text-amber-500 hover:underline text-xs mr-2">编辑</button>
+        <button onclick="deleteCategoryRow(${c.id})" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-xl font-bold text-heading" style="color:#1e293b;">所有分类</h2>
+      <button onclick="addCategory()" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">+ 新增分类</button>
+    </div>
+    <div class="card-admin bg-white rounded-lg shadow-sm overflow-hidden" style="border:1px solid #e0e0e0;">
+      <table class="data-table w-full">
+        <thead><tr><th>分类名称</th><th>文章数量</th><th>操作</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="3" class="text-center text-slate-400 py-8">暂无分类</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function addCategory() {
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">新增分类</h2>
+    <div class="space-y-3">
+      <input id="cat-name" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" placeholder="分类名称" />
+      <input id="cat-icon" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" placeholder="图标 (emoji)" />
+    </div>
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveNewCategory()" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveNewCategory() {
+  const name = document.getElementById('cat-name')?.value.trim();
+  if (!name) { showToast('名称不能为空'); return; }
+  API.createCategory({ name, icon: document.getElementById('cat-icon')?.value||'📁', count:0 });
+  closeModal();
+  renderPage();
+  showToast('分类已创建');
+}
+
+function editCategory(id, name) {
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">编辑分类</h2>
+    <input id="edit-cat-name" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(name)}" />
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveEditCategory(${id})" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveEditCategory(id) {
+  const name = document.getElementById('edit-cat-name')?.value.trim();
+  if (!name) return;
+  const old = API.getCategories().find(c=>c.id===id);
+  const oldName = old?.name||'';
+  API.updateCategory(id, { name });
+  // 同步文章中的分类名
+  Store.articles.forEach(a=>{ if(a.category===oldName) a.category=name; });
+  closeModal();
+  renderPage();
+  showToast('分类已更新');
+}
+
+function deleteCategoryRow(id) {
+  if (!confirmDialog('确定删除此分类？')) return;
+  API.deleteCategory(id);
+  renderPage();
+  showToast('分类已删除');
+}
+
+// ---- 所有标签 ----
+function renderAllTags() {
+  const tags = API.getTags();
+  const rows = tags.map(t=>{
+    const count = Store.articles.filter(a=>a.tags.includes(t)).length;
+    return `<tr><td><span class="inline-block px-2 py-0.5 rounded text-xs text-white" style="background:#64748b;">${esc(t)}</span></td><td>${count} 篇</td><td><button onclick="editTag('${esc(t)}')" class="text-amber-500 hover:underline text-xs mr-2">编辑</button><button onclick="deleteTagRow('${esc(t)}')" class="text-red-400 hover:underline text-xs">删除</button></td></tr>`;
+  }).join('');
+
+  return `
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-xl font-bold text-heading" style="color:#1e293b;">所有标签</h2>
+      <button onclick="addTag()" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">+ 新增标签</button>
+    </div>
+    <div class="card-admin bg-white rounded-lg shadow-sm overflow-hidden" style="border:1px solid #e0e0e0;">
+      <table class="data-table w-full">
+        <thead><tr><th>标签名称</th><th>关联文章</th><th>操作</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="3" class="text-center text-slate-400 py-8">暂无标签</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function addTag() {
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">新增标签</h2>
+    <input id="tag-name" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" placeholder="标签名称" />
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveNewTag()" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveNewTag() {
+  const name = document.getElementById('tag-name')?.value.trim();
+  if (!name) return;
+  API.createTag(name);
+  closeModal();
+  renderPage();
+  showToast('标签已创建');
+}
+
+function editTag(name) {
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">编辑标签</h2>
+    <input id="edit-tag-name" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" style="background:#f9fafb;" value="${esc(name)}" />
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveEditTag('${esc(name)}')" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveEditTag(oldName) {
+  const newName = document.getElementById('edit-tag-name')?.value.trim();
+  if (!newName) return;
+  API.updateTag(oldName, newName);
+  closeModal();
+  renderPage();
+  showToast('标签已更新');
+}
+
+function deleteTagRow(name) {
+  if (!confirmDialog('确定删除此标签？')) return;
+  API.deleteTag(name);
+  renderPage();
+  showToast('标签已删除');
+}
+
+// ---- 所有评论 ----
+function renderAllComments() {
+  const comments = API.getComments();
+  const rows = comments.map(c=>`
+    <tr>
+      <td class="text-xs"><a href="#" class="text-indigo-500 hover:underline" onclick="event.preventDefault();viewArticle(${c.articleId})">${esc(c.articleTitle)}</a></td>
+      <td>${esc(c.author)}</td>
+      <td class="max-w-xs"><span class="line-clamp-2">${esc(c.text)}</span></td>
+      <td class="text-xs">${c.time}</td>
+      <td>
+        <button onclick="editComment(${c.id},'${esc(c.text)}')" class="text-amber-500 hover:underline text-xs mr-2">编辑</button>
+        <button onclick="deleteCommentRow(${c.id})" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <h2 class="text-xl font-bold text-heading mb-5" style="color:#1e293b;">所有评论</h2>
+    <div class="card-admin bg-white rounded-lg shadow-sm overflow-hidden" style="border:1px solid #e0e0e0;">
+      <table class="data-table w-full">
+        <thead><tr><th>所属文章</th><th>评论者</th><th>内容</th><th>时间</th><th>操作</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="5" class="text-center text-slate-400 py-8">暂无评论</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function editComment(id, text) {
+  showModal(`
+    <h2 class="text-lg font-bold text-heading mb-4" style="color:#1e293b;">编辑评论</h2>
+    <textarea id="edit-comment-text" rows="3" class="input-admin w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none resize-none" style="background:#f9fafb;">${esc(text)}</textarea>
+    <div class="flex justify-end gap-3 mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+      <button onclick="saveEditComment(${id})" class="px-4 py-2 rounded-lg text-sm text-white hover:opacity-90" style="background:#475569;">保存</button>
+    </div>
+  `);
+}
+
+function saveEditComment(id) {
+  API.updateComment(id, { text: document.getElementById('edit-comment-text')?.value.trim() });
+  closeModal();
+  renderPage();
+  showToast('评论已更新');
+}
+
+function deleteCommentRow(id) {
+  if (!confirmDialog('确定删除此评论？')) return;
+  API.deleteComment(id);
+  renderPage();
+  showToast('评论已删除');
+}
+
+/* =================================================================
+   Page Event Binding
+   ================================================================= */
+function bindPageEvents() {
+  if (currentPage === 'all-articles') {
+    const s = document.getElementById('article-search');
+    const c = document.getElementById('article-cat-filter');
+    if (s) s.addEventListener('input', filterArticles);
+    if (c) c.addEventListener('change', filterArticles);
+  }
+}
+
+/* =================================================================
+   Init
+   ================================================================= */
+function init() {
+  try {
+    document.getElementById('user-btn').addEventListener('click', showProfileModal);
+    const firstGroup = document.querySelector('[data-menu="articles"]');
+    if (firstGroup) toggleSubmenu(firstGroup);
+    updateMenuActive();
+    renderPage();
+    console.log('GRIT 管理后台已就绪');
+  } catch (err) {
+    console.error('GRIT 管理后台初始化失败:', err);
+  }
+}
+
+// 暴露到全局 —— 必须在 init() 之前，防止 init 执行出错导致所有按钮失效
+window.navigate = navigate;
+window.toggleSubmenu = toggleSubmenu;
+window.viewArticle = viewArticle;
+window.editArticle = editArticle;
+window.saveEditArticle = saveEditArticle;
+window.deleteArticleRow = deleteArticleRow;
+window.filterArticles = filterArticles;
+window.resetArticleFilter = resetArticleFilter;
+window.handleFileUpload = handleFileUpload;
+window.publishArticle = publishArticle;
+window.addCategory = addCategory;
+window.saveNewCategory = saveNewCategory;
+window.editCategory = editCategory;
+window.saveEditCategory = saveEditCategory;
+window.deleteCategoryRow = deleteCategoryRow;
+window.addTag = addTag;
+window.saveNewTag = saveNewTag;
+window.editTag = editTag;
+window.saveEditTag = saveEditTag;
+window.deleteTagRow = deleteTagRow;
+window.editComment = editComment;
+window.saveEditComment = saveEditComment;
+window.deleteCommentRow = deleteCommentRow;
+window.showProfileModal = showProfileModal;
+window.saveProfile = saveProfile;
+window.closeModal = closeModal;
+window.showToast = showToast;
+window.confirmDialog = confirmDialog;
+
+// DOM 渲染完成后初始化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+})();
+</script>
+</body>
+</html>

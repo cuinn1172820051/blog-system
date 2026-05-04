@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRIT — 技术博客</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ===== 3D Perspective & Chat ===== */
+    .perspective-wrapper { perspective: 1000px; perspective-origin: 50% 20%; }
+    .card-3d {
+      transform: rotateX(2.5deg) rotateY(-3deg); transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(0.23,1,0.32,1), box-shadow 0.5s ease;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04), 0 8px 16px rgba(0,0,0,0.06), 0 20px 40px rgba(0,0,0,0.10), 0 40px 80px rgba(0,0,0,0.08);
+    }
+    .card-3d:hover { transform: rotateX(0.8deg) rotateY(-1deg); box-shadow: 0 0 0 1px rgba(0,0,0,0.02), 0 4px 8px rgba(0,0,0,0.06), 0 12px 24px rgba(0,0,0,0.10), 0 28px 56px rgba(0,0,0,0.14), 0 48px 96px rgba(0,0,0,0.10); }
+    .card-3d::before {
+      content:''; position:absolute; inset:-6px; border-radius:inherit;
+      background: linear-gradient(135deg, rgba(100,116,139,0.08) 0%, rgba(71,85,105,0.05) 30%, rgba(148,163,184,0.06) 60%, rgba(71,85,105,0.04) 100%);
+      transform: translateZ(-10px); filter: blur(16px); z-index:-1; opacity:0.6; transition: opacity 0.5s ease;
+    }
+    .card-3d:hover::before { opacity:0.9; }
+    .bubble-3d {
+      transform: translateZ(3px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .bubble-3d:hover { transform: translateZ(5px); box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06); }
+    .float-btn-3d {
+      transform: translateZ(4px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(71,85,105,0.20), 0 14px 32px rgba(71,85,105,0.10);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .float-btn-3d:hover { transform: translateZ(8px) scale(1.05); box-shadow: 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(71,85,105,0.30), 0 20px 44px rgba(71,85,105,0.15); }
+    @keyframes chatEnter { from { opacity:0; transform: rotateX(12deg) rotateY(-14deg) scale(0.88); } to { opacity:1; transform: rotateX(2.5deg) rotateY(-3deg) scale(1); } }
+    .chat-enter { animation: chatEnter 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    @keyframes msgSlideUp { from { opacity:0; transform: translateY(12px) translateZ(3px); } to { opacity:1; transform: translateY(0) translateZ(3px); } }
+    .msg-enter { animation: msgSlideUp 0.3s ease-out forwards; }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+    .typing-cursor::after { content:'|'; animation: blink 0.8s step-end infinite; color:#64748b; }
+    @keyframes dotBounce { 0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-5px);} }
+    .typing-dot { animation: dotBounce 1.4s infinite ease-in-out; display:inline-block; }
+    .typing-dot:nth-child(1){animation-delay:0s;} .typing-dot:nth-child(2){animation-delay:0.16s;} .typing-dot:nth-child(3){animation-delay:0.32s;}
+    .msg-area::-webkit-scrollbar{width:4px;} .msg-area::-webkit-scrollbar-track{background:transparent;} .msg-area::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+    .input-focus:focus { box-shadow: 0 0 0 3px rgba(71,85,105,0.10); }
+
+    /* ===== Blog ===== */
+    .article-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .article-card:hover { transform: translateY(-4px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .nav-item { transition: color 0.2s ease, background-color 0.2s ease; }
+    .search-expand { width: 40px; transition: width 0.35s cubic-bezier(0.25,0.8,0.25,1.2), opacity 0.25s ease; }
+    .search-expand.open { width: 200px; }
+    .search-expand input { opacity:0; transition: opacity 0.25s ease 0.1s; }
+    .search-expand.open input { opacity:1; }
+
+    /* ===== Dark Mode ===== */
+    html.dark body { background: #282c34; }
+    html.dark #navbar { background: #282c34 !important; border-color: #3e4451 !important; }
+    html.dark .text-nav { color: #abb2bf !important; }
+    html.dark .text-nav-hover:hover { color: #e5e7eb !important; background: rgba(255,255,255,0.06) !important; }
+    html.dark .menu-active { background: rgba(255,255,255,0.08) !important; color: #e5e7eb !important; }
+    html.dark .bg-main { background: #282c34 !important; }
+    html.dark .text-body { color: #abb2bf !important; }
+    html.dark .text-heading { color: #e5e7eb !important; }
+    html.dark .card-blog { background: #2c313a !important; border-color: #3e4451 !important; }
+    html.dark .card-blog h2, html.dark .card-blog h3 { color: #e5e7eb !important; }
+    html.dark .card-blog p, html.dark .card-blog span, html.dark .card-blog time { color: #abb2bf !important; }
+    html.dark .bg-footer { background: #21252b !important; border-color: #3e4451 !important; color: #5c6370 !important; }
+    html.dark .bg-comment { background: #2c313a !important; border-color: #3e4451 !important; }
+    html.dark .border-section { border-color: #3e4451 !important; }
+    html.dark .bg-input { background: #2c313a !important; border-color: #3e4451 !important; color: #abb2bf !important; }
+    html.dark .bg-sidebar { background: #2c313a !important; border-color: #3e4451 !important; }
+    html.dark .shadow-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important; }
+    html.dark .chat-card-bg { background: #2c313a !important; border-color: #3e4451 !important; }
+    html.dark .chat-header-bg { background: #282c34 !important; border-color: #3e4451 !important; }
+    html.dark .chat-input-bg { background: #2c313a !important; border-color: #3e4451 !important; color: #abb2bf !important; }
+    html.dark .chat-msg-area { background: #282c34 !important; }
+  </style>
+</head>
+<body class="min-h-screen bg-main" style="background:#f8fafc">
+
+<!-- ============================================ -->
+<!--              导航栏                           -->
+<!-- ============================================ -->
+<nav id="navbar" class="sticky top-0 z-30 border-b border-slate-200" style="background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <!-- 左侧：Logo + GRIT -->
+    <a href="#" class="flex items-center gap-2.5 flex-shrink-0 select-none" style="text-decoration:none;">
+      <svg class="w-10 h-10" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- 椅子靠背 -->
+        <rect x="32" y="4" width="2" height="32" rx="1" fill="#64748b"/>
+        <rect x="42" y="4" width="2" height="32" rx="1" fill="#64748b"/>
+        <rect x="30" y="3" width="16" height="3" rx="1.5" fill="#64748b"/>
+        <!-- 男生身体 -->
+        <rect x="34" y="20" width="8" height="18" rx="4" fill="#475569"/>
+        <!-- 头部 -->
+        <circle cx="38" cy="12" r="8" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+        <!-- 头发（利落短发） -->
+        <path d="M32 6 Q36 2 42 4 Q46 7 45 10 L44 5 Q40 1 34 4 Z" fill="#92400e"/>
+        <!-- 黑框眼镜 -->
+        <rect x="33" y="10" width="4.5" height="3" rx="1" fill="none" stroke="#1e293b" stroke-width="1.2"/>
+        <rect x="38.5" y="10" width="4.5" height="3" rx="1" fill="none" stroke="#1e293b" stroke-width="1.2"/>
+        <line x1="37.5" y1="11.5" x2="38.5" y2="11.5" stroke="#1e293b" stroke-width="1"/>
+        <!-- 专注眼神 -->
+        <circle cx="35.25" cy="11.5" r="0.8" fill="#0f172a"/>
+        <circle cx="40.75" cy="11.5" r="0.8" fill="#0f172a"/>
+        <!-- 认真抿嘴 -->
+        <line x1="36.5" y1="15.5" x2="39.5" y2="15.5" stroke="#d97706" stroke-width="0.8" stroke-linecap="round"/>
+        <!-- 手臂伸向键盘 -->
+        <path d="M34 26 Q28 28 26 34" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M42 26 Q48 28 50 34" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- 双手 -->
+        <circle cx="26" cy="34" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+        <circle cx="50" cy="34" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+        <!-- 桌面 -->
+        <rect x="2" y="36" width="52" height="3" rx="1" fill="#64748b"/>
+        <rect x="6" y="39" width="3" height="14" rx="1" fill="#475569"/>
+        <rect x="47" y="39" width="3" height="14" rx="1" fill="#475569"/>
+        <!-- 显示器支架 -->
+        <rect x="22" y="36" width="12" height="2" rx="1" fill="#334155"/>
+        <rect x="26" y="30" width="4" height="6" fill="#334155"/>
+        <!-- 显示器外框 -->
+        <rect x="8" y="8" width="24" height="18" rx="2" fill="#334155"/>
+        <!-- 屏幕（深色主题编辑器） -->
+        <rect x="10.5" y="10" width="19" height="14" rx="1" fill="#1e293b"/>
+        <!-- 代码行（语法高亮色彩） -->
+        <rect x="12" y="11.5" width="8" height="1.2" rx="0.6" fill="#38bdf8"/>
+        <rect x="12" y="13.5" width="12" height="1.2" rx="0.6" fill="#a78bfa"/>
+        <rect x="12" y="15.5" width="6" height="1.2" rx="0.6" fill="#f472b6"/>
+        <rect x="12" y="17.5" width="14" height="1.2" rx="0.6" fill="#38bdf8"/>
+        <rect x="12" y="19.5" width="10" height="1.2" rx="0.6" fill="#a78bfa"/>
+        <rect x="12" y="21.5" width="9" height="1.2" rx="0.6" fill="#4ade80"/>
+        <!-- 键盘 -->
+        <rect x="30" y="36" width="20" height="2.5" rx="1" fill="#475569"/>
+        <line x1="32" y1="37.2" x2="48" y2="37.2" stroke="#64748b" stroke-width="0.5"/>
+      </svg>
+      <span class="text-xl font-black tracking-wider text-slate-800 text-nav" style="font-family: 'Impact','Arial Black',sans-serif;">GRIT</span>
+    </a>
+
+    <!-- 右侧：菜单项 -->
+    <div class="flex items-center gap-1">
+      <div id="nav-menu" class="flex items-center gap-1">
+        <a href="#" data-nav="home" class="nav-item menu-active text-nav-hover px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100">首页</a>
+        <a href="#/category" data-nav="category" class="nav-item text-nav-hover px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100">分类</a>
+        <a href="#/tag" data-nav="tag" class="nav-item text-nav-hover px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100">标签</a>
+        <a href="#/about" data-nav="about" class="nav-item text-nav-hover px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100">关于</a>
+      </div>
+
+      <!-- GitHub 图标 -->
+      <a href="https://github.com/cuinn1172820051?tab=repositories" target="_blank" rel="noopener"
+         class="nav-item p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="GitHub">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      </a>
+
+      <!-- 搜索 -->
+      <div id="search-wrap" class="relative flex items-center">
+        <div id="search-box" class="search-expand flex items-center bg-slate-100 rounded-lg overflow-hidden">
+          <button id="search-btn" class="p-2 flex-shrink-0 text-slate-500 hover:text-slate-700 transition-colors" title="搜索">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <input id="search-input" type="text" placeholder="搜索文章…"
+            class="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none py-2 pr-3"
+            style="width:0;min-width:0;" />
+        </div>
+      </div>
+
+      <!-- 主题切换 -->
+      <button id="theme-btn" class="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="切换主题">
+        <svg id="theme-sun" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg id="theme-moon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================ -->
+<!--              主体内容区                       -->
+<!-- ============================================ -->
+<main id="main-content" class="max-w-6xl mx-auto px-6 py-8 min-h-[calc(100vh-160px)]">
+  <!-- 由 JS 动态渲染 -->
+</main>
+
+<!-- ============================================ -->
+<!--              页脚                            -->
+<!-- ============================================ -->
+<footer class="bg-footer border-t border-slate-200 py-8" style="background:#f1f5f9;">
+  <div class="max-w-6xl mx-auto px-6 text-center text-sm text-slate-500">
+    <p>&copy; 2026 GRIT Blog. All rights reserved.</p>
+    <p class="mt-1">基于 Tailwind CSS 构建 · 个人技术博客</p>
+  </div>
+</footer>
+
+<!-- ============================================ -->
+<!--              聊天组件                         -->
+<!-- ============================================ -->
+<div id="chat-root"></div>
+
+<script>
+(function () {
+  /* =================================================================
+     Blog Data — Mock 数据
+     ================================================================= */
+  const ARTICLES = [
+    { id:1, title:'深入理解 React 18 并发特性', date:'2026-05-03 14:30:00', summary:'React 18 引入了全新的并发渲染机制，包括 Suspense、Transition、useDeferredValue 等 API。本文将深入剖析这些特性的底层原理与最佳实践，帮助你在实际项目中充分利用并发模式带来的性能提升。', tags:['React','前端开发','JavaScript'], likes:128, favs:56, category:'前端开发',
+      content:`React 18 是 React 发展史上最重要的版本之一，它引入了**并发渲染（Concurrent Rendering）**这一革命性特性。
+
+## 什么是并发渲染？
+
+并发渲染是 React 18 的核心概念。在传统渲染中，React 的更新是不可中断的——一旦开始渲染，就必须完成整个渲染过程。而并发渲染允许 React 在渲染过程中"暂停"和"恢复"，从而让更高优先级的更新能够先被处理。
+
+## 关键 API
+
+### Suspense
+
+\`Suspense\` 组件允许你在组件树中声明"加载状态"：
+
+\`\`\`jsx
+import { Suspense } from 'react';
+
+function App() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <AsyncComponent />
+    </Suspense>
+  );
+}
+\`\`\`
+
+### useTransition
+
+\`useTransition\` 允许你将某些状态更新标记为"低优先级"：
+
+\`\`\`jsx
+const [isPending, startTransition] = useTransition();
+startTransition(() => { setQuery(q); });
+\`\`\`
+
+## 性能优化实践
+
+在实际项目中，合理使用并发特性可以显著提升用户体验。以下是一些最佳实践：
+
+1. **使用 Suspense 包裹异步组件**
+2. **用 useTransition 处理搜索输入**
+3. **用 useDeferredValue 延迟非关键更新**
+
+> 并发模式是 React 未来的基石，掌握它将使你能够构建更流畅的用户界面。
+
+以上就是 React 18 并发特性的核心内容。`, author:{name:'Grit',avatar:''}, reads:1250 },
+
+    { id:2, title:'使用 Rust 构建高性能 API 服务', date:'2026-04-28 10:15:00', summary:'Rust 以其卓越的性能和内存安全性成为构建后端服务的热门选择。本文介绍如何使用 Actix-web 框架从零搭建一个生产级的 RESTful API 服务，涵盖路由、中间件、数据库连接等核心模块。', tags:['Rust','后端架构','API'], likes:96, favs:42, category:'后端架构',
+      content:`Rust 凭借其**零成本抽象**和**内存安全**特性，正迅速成为高性能后端开发的首选语言。
+
+## 为什么选择 Rust
+
+与传统的 Go、Java 相比，Rust 在以下方面具有优势：
+
+- **性能**: 接近 C/C++ 的执行效率
+- **安全**: 编译期消除空指针和数据竞争
+- **生态**: Cargo 包管理器成熟稳定
+
+## Actix-web 快速上手
+
+\`\`\`rust
+use actix_web::{web, App, HttpServer, HttpResponse};
+
+async fn hello() -> HttpResponse {
+    HttpResponse::Ok().body("Hello, GRIT!")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new().route("/", web::get().to(hello))
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+}
+\`\`\`
+
+## 数据库集成
+
+使用 \`sqlx\` 进行异步数据库操作：
+
+\`\`\`rust
+let rows = sqlx::query!("SELECT * FROM posts WHERE id = ?", id)
+    .fetch_all(&pool)
+    .await?;
+\`\`\`
+
+## 总结
+
+Rust 在后端领域的应用前景广阔，值得投入时间学习。`, author:{name:'Grit',avatar:''}, reads:980 },
+
+    { id:3, title:'GPT 提示工程：从入门到精通', date:'2026-04-20 16:45:00', summary:'提示工程（Prompt Engineering）是发挥大语言模型能力的关键技能。本文系统梳理了零样本、少样本、思维链、结构化输出等核心提示技术，并结合实际案例展示如何编写高质量的 Prompt。', tags:['AI','LLM','提示工程'], likes:256, favs:112, category:'人工智能',
+      content:`提示工程（Prompt Engineering）是 2024-2026 年最热门的技术话题之一。
+
+## 基础概念
+
+提示工程指通过精心设计输入文本，引导大语言模型生成期望的输出。
+
+## 核心技巧
+
+### 1. 零样本提示（Zero-shot）
+
+直接提问，不给示例：
+
+> "将以下句子翻译成英文：今天天气真好。"
+
+### 2. 少样本提示（Few-shot）
+
+提供 2-3 个示例：
+
+> "Input: 你好 → Hello / Input: 再见 → Goodbye / Input: 谢谢 →"
+
+### 3. 思维链（Chain-of-Thought）
+
+引导模型逐步推理：
+
+> "请一步步思考：一个农场有 15 只鸡和 8 只兔，共有多少条腿？"
+
+## 最佳实践
+
+- 明确指定输出格式
+- 设定角色（System Prompt）
+- 使用分隔符区分不同部分
+
+> "好的 Prompt 是 AI 时代的编程语言。"`, author:{name:'Grit',avatar:''}, reads:2100 },
+
+    { id:4, title:'2026 前端技术趋势展望', date:'2026-04-15 09:00:00', summary:'回顾过去一年前端领域的技术演进，从 Rust 化工具链到 AI 驱动的开发模式，本文梳理了 2026 年前端开发最值得关注的五大技术趋势。', tags:['前端开发','趋势','2026'], likes:189, favs:73, category:'前端开发',
+      content:`2026 年的前端世界正在经历深刻变革。
+
+## 趋势一：Rust 化工具链全面普及
+
+Turbopack、Rspack、Farm 等 Rust 构建工具已成熟，Webpack 逐渐退出历史舞台。
+
+## 趋势二：AI 驱动开发
+
+VSCode Copilot、Cursor 等 AI IDE 已深度融入日常工作。
+
+## 趋势三：React Server Components
+
+RSC 正重新定义前后端边界。
+
+## 趋势四：WebAssembly 大规模落地
+
+## 趋势五：边缘计算与 SSR 2.0`, author:{name:'Grit',avatar:''}, reads:1560 },
+
+    { id:5, title:'周末徒步：京郊最美山脊线', date:'2026-04-10 20:00:00', summary:'记录一次令人难忘的京郊山脊徒步经历。从出发前的装备准备到沿途的壮丽风景，再到登顶后的感慨——这是一次身体与心灵的双重旅程。', tags:['徒步','生活','户外'], likes:67, favs:28, category:'生活随笔',
+      content:`四月的北京，春意盎然。周末和朋友们一起去了京郊的一条经典徒步路线。
+
+## 路线
+
+从潭柘寺出发，沿着山脊一路向北，终点是妙峰山。全程约 15 公里，海拔爬升约 800 米。
+
+## 感受
+
+站在山脊上，两侧是绵延的群山，远处能看到北京城区的轮廓。这种感觉很奇妙——城市与自然的界限在这一刻变得模糊。`, author:{name:'Grit',avatar:''}, reads:430 },
+
+    { id:6, title:'《代码整洁之道》读书笔记', date:'2026-04-05 13:20:00', summary:'重读 Robert C. Martin 的经典之作《代码整洁之道》，整理了一份详细的读书笔记，涵盖命名、函数、注释、格式等核心章节的精华内容。', tags:['读书笔记','代码质量','软件工程'], likes:145, favs:89, category:'读书笔记',
+      content:`《代码整洁之道》（Clean Code）是每一位软件工程师都应该阅读的经典著作。
+
+## 关于命名
+
+好的命名应该**名副其实**。变量名应该告诉读者它为什么存在、做什么事、怎么用。
+
+## 关于函数
+
+函数应该**短小精悍**。每个函数只做一件事，做好一件事。
+
+## 关于注释
+
+最好的注释就是**不需要注释**。用代码本身来表达意图。
+
+## 总结
+
+整洁的代码如同优美的散文，读起来令人愉悦。`, author:{name:'Grit',avatar:''}, reads:780 },
+
+    { id:7, title:'使用 Docker Compose 编排微服务', date:'2026-03-28 11:10:00', summary:'微服务架构中，容器编排是必不可少的一环。本文详细介绍如何使用 Docker Compose 管理多容器应用，包括服务定义、网络配置、数据卷挂载和环境变量管理。', tags:['Docker','微服务','DevOps'], likes:83, favs:35, category:'后端架构',
+      content:`Docker Compose 是管理多容器应用的标准工具。
+
+## 基本配置
+
+一个典型的 \`docker-compose.yml\` 文件定义了服务、网络和数据卷。
+
+## 服务编排
+
+通过 \`depends_on\` 控制启动顺序，通过 \`networks\` 实现服务间通信。
+
+## 环境管理
+
+使用 \`.env\` 文件管理不同环境的配置变量。`, author:{name:'Grit',avatar:''}, reads:620 },
+
+    { id:8, title:'浅谈 Web 性能优化策略', date:'2026-03-20 15:00:00', summary:'Web 性能直接关系到用户体验和业务转化率。本文从资源加载、渲染优化、缓存策略三个维度，总结了前端性能优化的核心方法论和实用技巧。', tags:['性能优化','前端开发','Web'], likes:112, favs:48, category:'前端开发',
+      content:`Web 性能优化是一个系统性的工程。
+
+## 资源加载优化
+
+- 代码分割（Code Splitting）
+- 图片懒加载
+- 预加载关键资源
+
+## 渲染优化
+
+- 减少重排重绘
+- 虚拟列表
+- Web Worker 处理密集计算
+
+## 缓存策略
+
+- Service Worker
+- CDN 缓存
+- HTTP 缓存头`, author:{name:'Grit',avatar:''}, reads:890 },
+  ];
+
+  const CATEGORIES = [
+    { name:'前端开发', count:15, icon:'🎨' },
+    { name:'后端架构', count:8,  icon:'⚙️' },
+    { name:'人工智能', count:5,  icon:'🤖' },
+    { name:'生活随笔', count:20, icon:'✍️' },
+    { name:'读书笔记', count:10, icon:'📚' },
+  ];
+
+  const ALL_TAGS = ['React','前端开发','JavaScript','Rust','后端架构','API','AI','LLM','提示工程','趋势','2026','徒步','生活','户外','读书笔记','代码质量','软件工程','Docker','微服务','DevOps','性能优化','Web'];
+
+  const ABOUT_INFO = {
+    name:'Grit',
+    bio:'一名热爱技术、热爱生活的全栈工程师。专注于前端开发与后端架构，对人工智能和大语言模型有浓厚兴趣。工作之余喜欢徒步、摄影和阅读。这个博客记录了我在技术道路上的学习心得与生活感悟。',
+    photos:['🏔️','📸','💻','☕','📚','🚴'],
+  };
+
+  /* =================================================================
+     Router — 简易 hash 路由
+     ================================================================= */
+  const $main = document.getElementById('main-content');
+  let currentRoute = 'home';
+  let currentCategory = null;
+  let currentTag = null;
+
+  function parseHash() {
+    const h = location.hash.replace('#/', '') || 'home';
+    if (h.startsWith('post/'))      { return { page:'post', id: parseInt(h.split('/')[1]) }; }
+    if (h.startsWith('category/'))  { return { page:'category-detail', name: decodeURIComponent(h.split('/')[1]) }; }
+    if (h.startsWith('tag/'))       { return { page:'tag-detail', name: decodeURIComponent(h.split('/')[1]) }; }
+    if (h === 'category')           { return { page:'category' }; }
+    if (h === 'tag')                { return { page:'tag' }; }
+    if (h === 'about')              { return { page:'about' }; }
+    return { page:'home' };
+  }
+
+  function navigate(hash) {
+    location.hash = hash;
+    renderPage();
+  }
+
+  function renderPage() {
+    const { page, id, name } = parseHash();
+    currentRoute = page;
+    updateNavActive(page);
+    switch (page) {
+      case 'home':            renderHome(); break;
+      case 'post':            renderPost(id); break;
+      case 'category':        renderCategories(); break;
+      case 'category-detail': renderCategoryDetail(name); break;
+      case 'tag':             renderTags(); break;
+      case 'tag-detail':      renderTagDetail(name); break;
+      case 'about':           renderAbout(); break;
+      default:                renderHome();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateNavActive(page) {
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.remove('menu-active');
+      el.style.background = '';
+      el.style.color = '';
+    });
+    const map = { home:'home', post:'home', 'category':'category', 'category-detail':'category', 'tag':'tag', 'tag-detail':'tag', about:'about' };
+    const active = map[page] || 'home';
+    const link = document.querySelector(`[data-nav="${active}"]`);
+    if (link) {
+      link.classList.add('menu-active');
+      const isDark = document.documentElement.classList.contains('dark');
+      link.style.background = isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9';
+      link.style.color = isDark ? '#e5e7eb' : '#1e293b';
+    }
+  }
+
+  /* =================================================================
+     Render — 首页
+     ================================================================= */
+  function renderHome() {
+    const cards = ARTICLES.map(a => `
+      <article class="article-card card-blog bg-white rounded-lg p-4 cursor-pointer shadow-sm"
+               style="border:1px solid #e0e0e0; background:#fff;"
+               onclick="location.hash='#/post/${a.id}'">
+        <div class="flex items-start justify-between mb-2">
+          <h2 class="text-lg font-bold text-heading" style="color:#333;">${esc(a.title)}</h2>
+          <span class="flex-shrink-0 ml-3 px-2 py-0.5 rounded text-xs font-medium text-white" style="background:#475569;">${esc(a.tags[0])}</span>
+        </div>
+        <time class="text-sm" style="color:#666;">${a.date}</time>
+        <p class="text-body mt-2 text-base leading-relaxed line-clamp-3" style="color:#333;">${esc(a.summary)}</p>
+        <div class="flex items-center gap-4 mt-3 text-sm" style="color:#666;">
+          <span class="flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="#475569"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ${a.likes}</span>
+          <span class="flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="#475569"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ${a.favs}</span>
+        </div>
+      </article>
+    `).join('');
+
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">最新文章</h2>
+      </div>
+      <div class="space-y-6">${cards}</div>
+    `;
+  }
+
+  /* =================================================================
+     Render — 文章详情
+     ================================================================= */
+  function renderPost(id) {
+    const a = ARTICLES.find(x => x.id === id);
+    if (!a) { renderHome(); return; }
+    const related = ARTICLES.filter(x => x.id !== id).slice(0, 8);
+
+    $main.innerHTML = `
+      <div class="flex flex-col lg:flex-row gap-8">
+        <!-- 左侧：文章内容 70% -->
+        <article class="flex-1 lg:w-[70%]">
+          <div class="card-blog bg-white rounded-lg p-6 shadow-sm" style="border:1px solid #e0e0e0;">
+            <!-- 元数据 -->
+            <div class="flex items-center gap-4 mb-4 pb-4 border-b border-section" style="border-color:#e5e7eb;">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style="background:#475569;">G</div>
+              <div class="flex items-center gap-3 text-sm" style="color:#666;">
+                <span>👤 ${esc(a.author.name)}</span>
+                <span>📅 ${a.date.split(' ')[0]}</span>
+                <span>👁️ ${a.reads} 阅读</span>
+              </div>
+            </div>
+            <!-- 标签 -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              ${a.tags.map(t=>`<span class="px-2 py-0.5 rounded text-xs font-medium text-white" style="background:#475569;">${esc(t)}</span>`).join('')}
+            </div>
+            <!-- 标题 -->
+            <h1 class="text-2xl font-bold mb-6 text-heading" style="color:#1e293b;">${esc(a.title)}</h1>
+            <!-- 正文 -->
+            <div id="post-body" class="text-body leading-relaxed" style="line-height:1.8;color:#333;">
+              ${renderMarkdown(a.content)}
+            </div>
+          </div>
+
+          <!-- 评论区 -->
+          <div class="card-blog bg-white rounded-lg p-6 mt-6 shadow-sm" style="border:1px solid #e0e0e0;">
+            <h3 class="text-lg font-bold mb-4 text-heading" style="color:#1e293b;">评论 (${(a._comments||[]).length})</h3>
+            <div class="flex gap-3 mb-4">
+              <textarea id="comment-input" rows="3" placeholder="写下你的评论…"
+                class="bg-input flex-1 p-3 rounded-lg border text-sm outline-none resize-none"
+                style="border-color:#d1d5db; background:#f9fafb;"></textarea>
+            </div>
+            <button id="comment-submit" class="px-5 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity" style="background:#475569;">发布评论</button>
+            <div id="comment-list" class="mt-6 space-y-4">
+              ${(a._comments||[]).map(c=>`
+                <div class="bg-comment flex gap-3 p-4 rounded-lg" style="background:#f8fafc;">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:#64748b;">U</div>
+                  <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-sm font-medium text-heading" style="color:#333;">匿名用户</span>
+                      <span class="text-xs" style="color:#999;">${c.time}</span>
+                    </div>
+                    <p class="text-sm text-body" style="color:#555;">${esc(c.text)}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </article>
+
+        <!-- 右侧：推荐阅读 30% -->
+        <aside class="lg:w-[30%] lg:min-w-[260px]">
+          <div class="bg-sidebar card-blog bg-white rounded-lg p-5 shadow-sm sticky top-20" style="border:1px solid #e0e0e0;">
+            <h3 class="text-base font-bold mb-4 text-heading" style="color:#1e293b;">📖 推荐阅读</h3>
+            <div class="space-y-3">
+              ${related.map(r=>`
+                <a href="#/post/${r.id}" class="block group" style="text-decoration:none;">
+                  <h4 class="text-sm font-medium text-heading group-hover:text-slate-500 transition-colors" style="color:#333;">${esc(r.title)}</h4>
+                  <span class="text-xs" style="color:#999;">👁️ ${r.reads} 阅读</span>
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        </aside>
+      </div>
+    `;
+
+    // 评论逻辑
+    setTimeout(() => {
+      const ta = document.getElementById('comment-input');
+      const btn = document.getElementById('comment-submit');
+      if (!ta || !btn) return;
+      btn.onclick = () => {
+        const text = ta.value.trim();
+        if (!text) return;
+        if (!a._comments) a._comments = [];
+        a._comments.unshift({ text, time: new Date().toLocaleString('zh-CN') });
+        ta.value = '';
+        renderPost(a.id);
+      };
+    }, 0);
+  }
+
+  /* =================================================================
+     Render — 分类列表
+     ================================================================= */
+  function renderCategories() {
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">文章分类</h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${CATEGORIES.map(c=>`
+          <div class="article-card card-blog bg-white rounded-lg p-5 shadow-sm cursor-pointer"
+               style="border:1px solid #e0e0e0;"
+               onclick="location.hash='#/category/${encodeURIComponent(c.name)}'">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">${c.icon}</span>
+              <div>
+                <h3 class="text-lg font-semibold text-heading" style="color:#333;">${esc(c.name)}</h3>
+                <p class="text-sm" style="color:#666;">${c.count} 篇文章</p>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderCategoryDetail(name) {
+    const articles = ARTICLES.filter(a => a.category === name);
+    const cards = articles.map(a => `
+      <article class="article-card card-blog bg-white rounded-lg p-4 cursor-pointer shadow-sm"
+               style="border:1px solid #e0e0e0; background:#fff;"
+               onclick="location.hash='#/post/${a.id}'">
+        <div class="flex items-start justify-between mb-2">
+          <h2 class="text-lg font-bold text-heading" style="color:#333;">${esc(a.title)}</h2>
+          <span class="flex-shrink-0 ml-3 px-2 py-0.5 rounded text-xs font-medium text-white" style="background:#475569;">${esc(a.tags[0])}</span>
+        </div>
+        <time class="text-sm" style="color:#666;">${a.date}</time>
+        <p class="text-body mt-2 text-base leading-relaxed line-clamp-3" style="color:#333;">${esc(a.summary)}</p>
+        <div class="flex items-center gap-4 mt-3 text-sm" style="color:#666;">
+          <span class="flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="#475569"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ${a.likes}</span>
+          <span class="flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="#475569"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ${a.favs}</span>
+        </div>
+      </article>
+    `).join('');
+
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-2">
+        <a href="#/category" class="text-sm hover:underline" style="color:#475569;">← 返回分类</a>
+      </div>
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">${esc(name)} (${articles.length}篇)</h2>
+      </div>
+      <div class="space-y-6">${cards || '<p class="text-slate-400">暂无文章</p>'}</div>
+    `;
+  }
+
+  /* =================================================================
+     Render — 标签
+     ================================================================= */
+  function renderTags() {
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">标签</h2>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        ${ALL_TAGS.map(t=>`
+          <a href="#/tag/${encodeURIComponent(t)}" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white shadow-sm hover:shadow-md transition-shadow"
+             style="border:1px solid #e0e0e0; text-decoration:none;">${esc(t)}</a>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderTagDetail(name) {
+    const articles = ARTICLES.filter(a => a.tags.includes(name));
+    const cards = articles.map(a => `
+      <article class="article-card card-blog bg-white rounded-lg p-4 cursor-pointer shadow-sm"
+               style="border:1px solid #e0e0e0; background:#fff;"
+               onclick="location.hash='#/post/${a.id}'">
+        <h2 class="text-lg font-bold text-heading" style="color:#333;">${esc(a.title)}</h2>
+        <time class="text-sm" style="color:#666;">${a.date}</time>
+        <p class="text-body mt-2 text-base leading-relaxed line-clamp-3" style="color:#333;">${esc(a.summary)}</p>
+      </article>
+    `).join('');
+
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-2">
+        <a href="#/tag" class="text-sm hover:underline" style="color:#475569;">← 返回标签</a>
+      </div>
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">标签：${esc(name)} (${articles.length}篇)</h2>
+      </div>
+      <div class="space-y-6">${cards || '<p class="text-slate-400">暂无文章</p>'}</div>
+    `;
+  }
+
+  /* =================================================================
+     Render — 关于
+     ================================================================= */
+  function renderAbout() {
+    $main.innerHTML = `
+      <div class="flex items-center gap-3 mb-6">
+        <span class="w-1.5 h-6 rounded-full" style="background:#475569;"></span>
+        <h2 class="text-2xl font-bold text-heading" style="color:#1e293b;">关于我</h2>
+      </div>
+      <div class="card-blog bg-white rounded-lg p-6 shadow-sm max-w-2xl" style="border:1px solid #e0e0e0;">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold" style="background:#475569;">G</div>
+          <div>
+            <h3 class="text-xl font-bold text-heading" style="color:#1e293b;">${esc(ABOUT_INFO.name)}</h3>
+            <p class="text-sm" style="color:#666;">全栈工程师 · 技术博主</p>
+          </div>
+        </div>
+        <p class="text-body leading-relaxed mb-6" style="color:#333;">${esc(ABOUT_INFO.bio)}</p>
+        <h4 class="font-semibold text-heading mb-3" style="color:#1e293b;">📷 日常生活</h4>
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          ${ABOUT_INFO.photos.map(p=>`
+            <div class="aspect-square rounded-lg flex items-center justify-center text-3xl" style="background:#f1f5f9;border:1px solid #e2e8f0;">${p}</div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  /* =================================================================
+     Markdown 简单渲染
+     ================================================================= */
+  function renderMarkdown(md) {
+    let html = esc(md);
+    // 代码块
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-slate-800 text-slate-100 p-4 rounded-lg overflow-x-auto my-4 text-sm"><code>$2</code></pre>');
+    // 行内代码
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-sm">$1</code>');
+    // 粗体
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // H2
+    html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-3 text-heading" style="color:#1e293b;">$1</h2>');
+    // H3
+    html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-2 text-heading" style="color:#334155;">$1</h3>');
+    // 引用
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-slate-400 pl-4 my-3 italic" style="color:#555;">$1</blockquote>');
+    // 列表
+    html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc my-1">$1</li>');
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4 list-decimal my-1">$2</li>');
+    // 段落
+    html = html.replace(/\n\n/g, '</p><p class="my-3">');
+    html = '<p class="my-3">' + html + '</p>';
+    return html;
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  /* =================================================================
+     Theme — 日间/夜间切换
+     ================================================================= */
+  function initTheme() {
+    const btn = document.getElementById('theme-btn');
+    const sun = document.getElementById('theme-sun');
+    const moon = document.getElementById('theme-moon');
+    const html = document.documentElement;
+    const saved = localStorage.getItem('theme');
+
+    function setTheme(dark) {
+      html.classList.toggle('dark', dark);
+      sun.classList.toggle('hidden', dark);
+      moon.classList.toggle('hidden', !dark);
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+      // 聊天窗口颜色适配
+      const card = document.querySelector('.card-3d');
+      if (card) { card.classList.toggle('chat-card-bg', dark); }
+      updateNavActive(currentRoute);
+    }
+
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(saved === 'dark' || (!saved && prefersDark));
+
+    btn.addEventListener('click', () => setTheme(!html.classList.contains('dark')));
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      if (!localStorage.getItem('theme')) setTheme(e.matches);
+    });
+  }
+
+  /* =================================================================
+     Search — 展开/收起 + API 调用
+     ================================================================= */
+  function initSearch() {
+    const wrap  = document.getElementById('search-wrap');
+    const box   = document.getElementById('search-box');
+    const btn   = document.getElementById('search-btn');
+    const input = document.getElementById('search-input');
+
+    function open() {
+      box.classList.add('open');
+      input.style.width = '160px';
+      input.style.minWidth = '0';
+      setTimeout(() => input.focus(), 350);
+    }
+    function close() {
+      box.classList.remove('open');
+      input.style.width = '0';
+      input.style.minWidth = '0';
+      input.value = '';
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      box.classList.contains('open') ? close() : open();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrap.contains(e.target)) close();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const q = input.value.trim();
+        if (q) {
+          console.log('搜索请求发送到后台 API:', q);
+          // TODO: 替换为实际 API 调用
+          // fetch('/api/search', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:q}) })
+          alert('搜索功能（演示）：\n搜索词: ' + q + '\n\n后期将调用后台 /api/search 接口');
+          close();
+        }
+      }
+    });
+  }
+
+  /* =================================================================
+     Init — 页面启动
+     ================================================================= */
+  function init() {
+    initTheme();
+    initSearch();
+    window.addEventListener('hashchange', renderPage);
+    renderPage();
+  }
+
+  init();
+
+  /* ================================================================
+     ChatComponent — 聊天组件（保持不变）
+     ================================================================ */
+  class StreamingSimulator {
+    constructor(onChunk, onDone) { this.onChunk = onChunk; this.onDone = onDone; this.timer = null; this.aborted = false; }
+    stream(text, speed = 28) {
+      this.abort(); this.aborted = false; let i = 0; const chars = [...text];
+      const tick = () => {
+        if (this.aborted || i >= chars.length) { if (!this.aborted && this.onDone) this.onDone(); return; }
+        const size = Math.floor(Math.random() * 3) + 1;
+        this.onChunk(chars.slice(i, i + size).join('')); i += size;
+        const jitter = (Math.random() - 0.5) * 14;
+        this.timer = setTimeout(tick, speed + jitter);
+      };
+      this.timer = setTimeout(tick, speed + 60);
+    }
+    abort() { this.aborted = true; clearTimeout(this.timer); }
+  }
+
+  class ApiConnector {
+    constructor(apiUrl) { this.apiUrl = apiUrl; }
+    async sendMessage(query, onChunk, onDone, onError) {
+      if (!this.apiUrl) { onError(new Error('API URL 未配置')); return; }
+      try {
+        const res = await fetch(this.apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query}) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const reader = res.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder(); let buf = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream:true });
+            const lines = buf.split('\n'); buf = lines.pop() || '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const raw = line.slice(6);
+                if (raw === '[DONE]') { onDone(); return; }
+                try { onChunk(JSON.parse(raw).content || JSON.parse(raw).text || ''); } catch { onChunk(raw); }
+              }
+            }
+          }
+          onDone();
+        } else {
+          const data = await res.json();
+          onChunk(data.content || data.text || data.message || JSON.stringify(data));
+          onDone();
+        }
+      } catch (e) { onError(e); }
+    }
+  }
+
+  const DEMO = `你好！感谢你的提问。
+
+我是 GRIT 博客站点集成的 AI 助手。你可以向我提任何问题，我会以流式输出的方式逐字呈现回复内容。
+
+以下是你问题的参考回复：
+
+—— 博客功能 ——
+· 文章分类浏览与标签筛选
+· 文章详情页含推荐阅读侧边栏
+· 评论系统（演示模式为本地模拟）
+· 日间/夜间主题一键切换
+
+—— 技术实现 ——
+· Tailwind CSS 3D Perspective 立体透视
+· 原生 JavaScript 无框架依赖
+· SSE (Server-Sent Events) 流式协议支持
+· 简易 Markdown 渲染器
+
+—— 设计风格 ——
+· 灰色主调，简约低调
+· 统一的文字行距与段落间距
+· 细腻阴影层次呈现立体感
+
+如需接入真实后端，在初始化时传入 apiUrl 参数即可。
+
+请问还有其他想了解的吗？`;
+
+  const DEMO_SHORT = `收到你的消息了。
+
+当前处于演示模式。在实际部署中，这里将是从后端大模型 API 实时流式返回的内容。
+
+接入方法很简单：初始化组件时传入 apiUrl 参数即可。`;
+
+  class ChatComponent {
+    constructor(opts = {}) {
+      this.apiUrl = opts.apiUrl || ''; this.title = opts.title || 'AI 助手';
+      this.placeholder = opts.placeholder || '输入消息，Enter 发送…';
+      this.messages = []; this.isOpen = false; this.isStreaming = false;
+      this.streamer = new StreamingSimulator((chunk) => this._onChunk(chunk), () => this._onDone());
+      this.api = new ApiConnector(this.apiUrl); this._streamTarget = null; this._simStarted = false;
+      this._init();
+    }
+    _init() { this._render(); this._cacheDOM(); this._bindEvents(); this._addWelcome(); }
+    _render() {
+      document.getElementById('chat-root').innerHTML = `
+<button id="ctb" class="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-slate-700 text-white flex items-center justify-center z-50 float-btn-3d hover:bg-slate-800 active:scale-95" aria-label="打开聊天">
+  <svg id="icon-open" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+  <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+</button>
+<div id="cw" class="fixed bottom-24 right-8 w-[460px] h-[660px] z-40 hidden">
+  <div class="perspective-wrapper w-full h-full">
+    <div class="card-3d chat-enter w-full h-full bg-white rounded-2xl flex flex-col overflow-hidden border border-slate-200/50">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center shadow-sm">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 2.9-1.8 5.4-4.3 6.5L12 22l-2.7-6.5A7 7 0 015 9a7 7 0 017-7z"/></svg>
+          </div>
+          <div><h3 class="font-medium text-slate-800 text-sm">${this.title}</h3><p class="text-xs text-slate-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>在线</p></div>
+        </div>
+        <button id="ccl" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" aria-label="关闭"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div id="cmsg" class="msg-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-slate-50/60">
+        <div id="ctyping" class="flex items-end gap-2 hidden">
+          <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center flex-shrink-0"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 2.9-1.8 5.4-4.3 6.5L12 22l-2.7-6.5A7 7 0 015 9a7 7 0 017-7z"/></svg></div>
+          <div class="flex gap-1 px-4 py-3 bg-white rounded-2xl rounded-bl-md border border-slate-100 shadow-sm"><span class="typing-dot w-2 h-2 rounded-full bg-slate-300"></span><span class="typing-dot w-2 h-2 rounded-full bg-slate-300"></span><span class="typing-dot w-2 h-2 rounded-full bg-slate-300"></span></div>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-slate-100 bg-white flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <input id="cinp" type="text" placeholder="${this.placeholder}" class="input-focus flex-1 px-4 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-300 transition-all duration-200" autocomplete="off" />
+          <button id="csend" class="w-10 h-10 rounded-lg bg-slate-600 text-white flex items-center justify-center flex-shrink-0 hover:bg-slate-700 active:scale-95 transition-all duration-200 shadow-md shadow-slate-200" aria-label="发送"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+    }
+    _cacheDOM() {
+      this.$toggle=document.getElementById('ctb'); this.$window=document.getElementById('cw');
+      this.$msgs=document.getElementById('cmsg'); this.$input=document.getElementById('cinp');
+      this.$send=document.getElementById('csend'); this.$typing=document.getElementById('ctyping');
+      this.$iconOpen=document.getElementById('icon-open'); this.$iconClose=document.getElementById('icon-close');
+      this.$closeBtn=document.getElementById('ccl');
+    }
+    _bindEvents() {
+      this.$toggle.addEventListener('click',()=>this.toggle());
+      this.$closeBtn.addEventListener('click',()=>this.close());
+      this.$send.addEventListener('click',()=>this._send());
+      this.$input.addEventListener('keydown',(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();this._send();}});
+      const card=this.$window.querySelector('.card-3d');
+      this.$window.addEventListener('mousemove',(e)=>{if(!card)return;const r=this.$window.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-0.5;const y=(e.clientY-r.top)/r.height-0.5;card.style.transform=`rotateX(${2.5-y*6}deg) rotateY(${-3+x*8}deg)`;});
+      this.$window.addEventListener('mouseleave',()=>{if(card)card.style.transform='rotateX(2.5deg) rotateY(-3deg)';});
+    }
+    _addWelcome() {
+      this.messages.push({role:'assistant',content:'你好！我是 GRIT 博客的 AI 助手。\n\n你可以问我任何问题，我会以流式输出的方式为你解答。当前处于演示模式，试试看吧！'});
+      this._renderMsg(this.messages[0]);
+    }
+    toggle(){this.isOpen?this.close():this.open();}
+    open(){this.isOpen=true;this.$window.classList.remove('hidden');this.$iconOpen.classList.add('hidden');this.$iconClose.classList.remove('hidden');const card=this.$window.querySelector('.card-3d');if(card){card.classList.remove('chat-enter');void card.offsetWidth;card.classList.add('chat-enter');}setTimeout(()=>this.$input.focus(),400);}
+    close(){this.isOpen=false;this.$window.classList.add('hidden');this.$iconOpen.classList.remove('hidden');this.$iconClose.classList.add('hidden');}
+    async _send() {
+      if(this.isStreaming)return;const text=this.$input.value.trim();if(!text)return;this.$input.value='';
+      const userMsg={role:'user',content:text};this.messages.push(userMsg);this._renderMsg(userMsg);
+      const botMsg={role:'assistant',content:''};this.messages.push(botMsg);const botEl=this._renderMsg(botMsg,true);
+      this._showTyping(true);this.isStreaming=true;this.$send.disabled=true;this.$send.classList.add('opacity-50','cursor-not-allowed');
+      let apiOK=false;
+      this.api.sendMessage(text,
+        (chunk)=>{if(!apiOK){this._showTyping(false);apiOK=true;}botMsg.content+=chunk;const ce=botEl.querySelector('.mc');if(ce)ce.textContent=botMsg.content;this._scroll();},
+        ()=>{this.isStreaming=false;this._showTyping(false);this._enableSend();botEl&&botEl.classList.remove('typing-cursor');},
+        (err)=>{console.warn('API 不可用，使用演示模式:',err.message);if(!apiOK)this._simStream(botMsg,botEl);}
+      );
+    }
+    _simStream(botMsg,botEl){if(this._simStarted)return;this._simStarted=true;const prev=this.messages[this.messages.length-2];const txt=(prev?.content||'').length<20?DEMO:DEMO_SHORT;setTimeout(()=>{this._showTyping(false);this.streamer.stream(txt,26);this._streamTarget={msg:botMsg,el:botEl};},650);}
+    _onChunk(chunk){const t=this._streamTarget;if(!t)return;t.msg.content+=chunk;const ce=t.el.querySelector('.mc');if(ce)ce.textContent=t.msg.content;this._scroll();}
+    _onDone(){this._simStarted=false;this._streamTarget=null;this.isStreaming=false;this._enableSend();const last=this.$msgs.querySelector('.mr.bot:last-child');if(last)last.classList.remove('typing-cursor');}
+    _enableSend(){this.$send.disabled=false;this.$send.classList.remove('opacity-50','cursor-not-allowed');this.$input.focus();}
+    _renderMsg(msg,streamingPlaceholder){
+      const bot=msg.role==='assistant';
+      const rowCls=bot?'mr bot flex items-start gap-2 msg-enter':'mr user flex items-start gap-2 justify-end msg-enter';
+      const avatar=bot?`<div class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 2.9-1.8 5.4-4.3 6.5L12 22l-2.7-6.5A7 7 0 015 9a7 7 0 017-7z"/></svg></div>`:'';
+      const bubbleCls=bot?'bubble-3d bg-white border border-slate-100 rounded-2xl rounded-bl-md px-4 py-2.5 shadow-sm max-w-[85%]':'bubble-3d bg-slate-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%] shadow-md shadow-slate-300/40';
+      const curCls=(bot&&streamingPlaceholder)?' typing-cursor':'';
+      const row=document.createElement('div');row.className=`${rowCls}${curCls}`;
+      row.innerHTML=`${avatar}<div class="${bubbleCls}"><div class="mc text-sm leading-relaxed whitespace-pre-wrap break-words">${esc( msg.content)}</div></div>`;
+      this.$msgs.insertBefore(row,this.$typing);this._scroll();return row;
+    }
+    _showTyping(v){this.$typing.classList.toggle('hidden',!v);if(v)this._scroll();}
+    _scroll(){requestAnimationFrame(()=>{this.$msgs.scrollTop=this.$msgs.scrollHeight;});}
+    setApiUrl(url){this.apiUrl=url;this.api=new ApiConnector(url);}
+  }
+
+  window.__chat = new ChatComponent({ apiUrl:'', title:'AI 助手', placeholder:'输入消息，Enter 发送…' });
+  console.log('GRIT Blog + Chat ready — window.__chat.setApiUrl("/api/chat")');
+})();
+</script>
+</body>
+</html>
