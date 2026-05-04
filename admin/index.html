@@ -121,43 +121,43 @@
     <nav class="px-3 space-y-1">
       <!-- 文章管理 -->
       <div>
-        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="articles">
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" data-menu="articles">
           <span>📄 文章管理</span>
           <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="submenu" data-submenu="articles">
-          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-articles" onclick="navigate(event,'all-articles')">所有文章</a>
-          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="new-article" onclick="navigate(event,'new-article')">写新文章</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-articles">所有文章</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="new-article">写新文章</a>
         </div>
       </div>
       <!-- 分类管理 -->
       <div>
-        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="categories">
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" data-menu="categories">
           <span>📂 分类管理</span>
           <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="submenu" data-submenu="categories">
-          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-categories" onclick="navigate(event,'all-categories')">所有分类</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-categories">所有分类</a>
         </div>
       </div>
       <!-- 标签管理 -->
       <div>
-        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="tags">
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" data-menu="tags">
           <span>🏷️ 标签管理</span>
           <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="submenu" data-submenu="tags">
-          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-tags" onclick="navigate(event,'all-tags')">所有标签</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-tags">所有标签</a>
         </div>
       </div>
       <!-- 评论管理 -->
       <div>
-        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" onclick="toggleSubmenu(this)" data-menu="comments">
+        <button class="menu-group w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700" data-menu="comments">
           <span>💬 评论管理</span>
           <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="submenu" data-submenu="comments">
-          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-comments" onclick="navigate(event,'all-comments')">所有评论</a>
+          <a href="#" class="menu-item block px-3 py-2 ml-4 rounded-lg text-sm text-slate-600 hover:bg-slate-100" data-page="all-comments">所有评论</a>
         </div>
       </div>
     </nav>
@@ -300,6 +300,21 @@ function toggleSubmenu(btn) {
 
 document.getElementById('sidebar-toggle').addEventListener('click',()=>{
   document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+// 事件委托：侧边栏菜单点击（避免静态 onclick 中引用未定义的函数）
+document.getElementById('sidebar').addEventListener('click', function(e) {
+  const groupBtn = e.target.closest('.menu-group');
+  if (groupBtn) {
+    e.preventDefault();
+    toggleSubmenu(groupBtn);
+    return;
+  }
+  const menuLink = e.target.closest('.menu-item');
+  if (menuLink) {
+    e.preventDefault();
+    navigate(e, menuLink.dataset.page);
+  }
 });
 
 /* =================================================================
@@ -534,7 +549,7 @@ function renderNewArticle() {
     <div class="flex gap-4" style="min-height:420px;">
       <div class="flex-1 flex flex-col">
         <span class="text-xs font-medium text-slate-400 mb-2">📝 Markdown 编辑</span>
-        <textarea id="md-input" class="md-editor input-admin flex-1 p-4 rounded-lg border border-slate-200 outline-none resize-none" style="background:#fafafa;" placeholder="在此编写 Markdown 内容…&#10;&#10;## 二级标题&#10;&#10;正文内容…&#10;&#10;```js&#10;console.log('Hello');&#10;```"></textarea>
+        <textarea id="md-input" class="md-editor input-admin flex-1 p-4 rounded-lg border border-slate-200 outline-none resize-none" style="background:#fafafa;" placeholder="在此编写 Markdown 内容…&#10;&#10;## 二级标题&#10;&#10;正文内容…&#10;&#10;\`\`\`js&#10;console.log('Hello');&#10;\`\`\`"></textarea>
       </div>
       <div class="flex-1 flex flex-col">
         <span class="text-xs font-medium text-slate-400 mb-2">👁️ 实时预览</span>
