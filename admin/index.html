@@ -69,6 +69,15 @@
 <body class="min-h-screen flex flex-col" style="background:#f8fafc;">
 
 <!-- ============================================ -->
+<!--              登录鉴权                          -->
+<!-- ============================================ -->
+<script>
+  if (!localStorage.getItem('admin_auth')) {
+    window.location.replace('/admin/login.html');
+  }
+</script>
+
+<!-- ============================================ -->
 <!--              顶部导航栏                        -->
 <!-- ============================================ -->
 <nav id="navbar" class="sticky top-0 z-30 border-b border-slate-200 flex-shrink-0"
@@ -107,6 +116,7 @@
         <svg id="theme-moon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
       </button>
       <button id="user-btn" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm hover:opacity-80 transition-opacity" style="background:#475569;" title="用户信息">G</button>
+      <button id="logout-btn" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="退出登录">退出</button>
     </div>
   </div>
 </nav>
@@ -825,6 +835,12 @@ function bindPageEvents() {
 function init() {
   try {
     document.getElementById('user-btn').addEventListener('click', showProfileModal);
+    document.getElementById('logout-btn').addEventListener('click', function() {
+      if (confirm('确定退出登录？')) {
+        localStorage.removeItem('admin_auth');
+        window.location.replace('/admin/login.html');
+      }
+    });
     const firstGroup = document.querySelector('[data-menu="articles"]');
     if (firstGroup) toggleSubmenu(firstGroup);
     updateMenuActive();
